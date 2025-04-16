@@ -10,6 +10,11 @@
 .globl _start
 
 _start:
+    call read_input
+    call write_stdout
+    jmp exit_program
+
+read_input:
     # read(fd, *buf, count) syscall 0
     # rdi, rsi, rdx
     mov $0, %rax
@@ -17,30 +22,16 @@ _start:
     lea in_buf(%rip), %rsi
     mov $in_buf_len, %rdx
     syscall
-    # test for empty input (null), not possible from keyboard as enter
-    # submits a newline at least. Doable with cat /dev/null
+    call input_validation
+    ret
+
+input_validation:
     test %rax, %rax
     jz handle_empty
-    # test for just the newline char, submit with no characters written
+    # 0x10 = \n
     cmpb $10, in_buf(%rip)
     je handle_empty
-
-    # write(fd, *buf, count) syscall 1
-    # rdi, rsi, rdx
-    # can push the value in rax straight into rdx here rather than use an
-    # intermediate label to save an instruction.
-    # also don't have to set rsi again, it's still pointing to the buffer
-    # mem address
-    mov %rax, %rdx
-    mov $1, %rax
-    mov $1, %rdi
-    syscall
-    jmp exit_program
-
-exit_program:
-    mov $60, %rax
-    mov $0, %rdi
-    syscall
+    ret
 
 handle_empty:
     mov $1, %rax
@@ -49,3 +40,18 @@ handle_empty:
     mov $empty_err_len, %rdx
     syscall
     jmp exit_program
+
+write_stdout:
+    # write(fd, *buf, count) syscall 1
+    # rdi, rsi, rdx
+    mov %rax, %rdx
+    mov $1, %rax
+    mov $1, %rdi
+    syscall
+    ret
+
+exit_program:
+    mov $60, %rax
+    mov $0, %rdi
+    syscall
+
